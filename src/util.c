@@ -10,7 +10,8 @@
 char* prg_name;
 
 void print_error (char * message, ...) {
-	char * to_print = malloc (sizeof (char) * (strlen (message) + strlen (prg_name) + 3));
+	char * to_print = NULL;
+	to_print = malloc (sizeof (char) * (strlen (message) + strlen (prg_name) + 3));
 
 	to_print = strcpy (to_print, "[");
 	to_print = strcat (to_print, prg_name);
@@ -22,10 +23,11 @@ void print_error (char * message, ...) {
 
 	vfprintf (stderr, to_print, arguments);
 
-	va_end (arguments);
 	free (to_print);
+	va_end (arguments);
+	to_print = NULL;
 }
 
 void print_usage (void) {
-	fprintf (stderr, "[%s] Usage: %s [-p PORT] [-i INDEX] DOC_ROOT\n", prg_name, prg_name);
+	fprintf (stderr, "[%s] Usage: %s [-p PORT] QUOTE_FILE\n", prg_name, prg_name);
 }

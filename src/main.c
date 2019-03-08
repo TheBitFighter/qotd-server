@@ -31,6 +31,15 @@ static int read_flags (int argc, char ** argv);
 static void clean_up (void);
 void handle_signal (int signal);
 
+/**
+ * @brief Main method
+ * @details Main method of the program. Opens a server socket and keeps it open 
+ * until a signal is received.
+ *
+ * @param argc The argument counter
+ * @param argv The argument vector
+ * @return Returns EXIT_SUCCESS
+ */
 int main (int argc, char ** argv) {
 
 	// Set the program name 
@@ -51,33 +60,41 @@ int main (int argc, char ** argv) {
 		exit (EXIT_FAILURE);
 	}
 
+	// Open the server
 	if (open_server_socket (port) < 0) {
 		print_usage ();
 		clean_up ();
 		exit (EXIT_FAILURE);
 	}
 
-	printf ("Opened socket on port %s\n", port);
+	print_error ("Opened socket on port %s\n", port);
 
+	// While the server has not been aborted, answer requests
 	while (!quit) {
-		int response_code;
 	
-		response_code = accept_client_connection ();
-
-		printf ("Answered client request with response code %d\n", response_code);
+		char* response = accept_client_connection ();
+		
+		if (response != NULL) {
+			print_error ("Answered client request with quote %s\n", response);
+		}
 	}
 	
-	if (close_server_socket () < 0) {
-		print_usage ();
-		clean_up ();
-		exit (EXIT_FAILURE);
-	}
-
-
+	// Clean up the environment and exit
 	clean_up();
 	exit (EXIT_SUCCESS);
 }
 
+
+/**
+ * @brief Parse the arguments
+ * @details Take the argument vector and parse the indiviual arguments from it.
+ * It also looks up the supplied quotes file. If an invalid argument is given or 
+ * the quotes file does not exist, an error is returned.
+ *
+ * @param argc The argument counter
+ * @param argv The argument vector
+ * @returns 0 on success
+ */
 static int read_flags (int argc, char ** argv) {
 	int opt = 0;
 
@@ -108,8 +125,8 @@ static int read_flags (int argc, char ** argv) {
 				}
 
 				// Set the port parameter
-				port = malloc (sizeof (char) * (strlen (optarg) + 1));
-				port = strcpy (port, optarg);
+				port = malloc (sizeof (char) * strlen (optarg));
+				sprintf(port, "%i", check_port);
 
 				// Set the port_set flag 
 				port_set = true;
@@ -126,30 +143,16 @@ static int read_flags (int argc, char ** argv) {
 		}
 	}
 
-	// Read and check the document root
-
 	// Check if the number of arguments is valid
 	// In this case it is only valid if the number of args is even
 	if (argc < 2 || argc % 2 != 0) {
 		print_error ("Invalid usage\n");
 		return -1;
 	}
-	doc_root = malloc (sizeof (char) * strlen (argv[argc-1]));
-	doc_root = strcpy (doc_root, argv[argc-1]);
 
-	DIR* dir = opendir (doc_root);
-
-	// Check if given directory exists
-	if (doc_root) {
-		// Directory exists
-		closedir (dir);
-	} else if (ENOENT == errno) {
-		// Directory does not exist
-		print_error ("The given quote file does not exist\n");
-		return -1;
-	} else  {
-		// Directory exists but could not be opened
-		print_error ("The given quote file could not be opened\n");
+	// Load the quotes file into the server
+	if (load_file (argv[argc-1]) < 0) {
+		print_error ("Quotes file could not be loaded. Error: %i %s\n", errno, strerror (errno));
 		return -1;
 	}
 
@@ -158,13 +161,30 @@ static int read_flags (int argc, char ** argv) {
 
 }
 
+
+/**
+ * @brief Clean up the used memory
+ */
 static void clean_up (void) {
-	// Free everything and set the pointers to NULL
-	if (port_set) free (port);
-	port = NULL;
-	
+	// Close the server socket
+	if (close_server_socket () < 0) {
+		print_error ("Server socket could not be closed. Error: %i %s\n", errno, strerror (errno));
+	}
+
+	// Unload the quotes from ram
+	unload_quotes ();
+
+	if (port != NULL && port_set) {
+		free (port);
+		port = NULL;
+	}
 }
 
+/**
+ * @brief Handle an incoming signal
+ * @details If SIGINT or SIGTERM is received, the quit variable is set to 1
+ * which terminates the program.
+ */
 void handle_signal (int signal) {
 	print_error ("Received signal %d \n", signal);
 	print_error ("Closing connections...\n");
