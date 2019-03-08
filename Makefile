@@ -19,7 +19,7 @@ DEPENDFILE = .depend
 
 # Targets
 # -------
-all: httpserver
+all: qotd-server
 
 clean:
 	rm -f $(OFILES)
@@ -29,7 +29,7 @@ dep: depend
 depend: 
 	$(CC) $(CFLAGS) -MM $(CFILES) > $(DEPENDFILE)
 
-httpserver: $(OFILES)
+qotd-server: $(OFILES)
 	$(LD) -o $@ $(OFILES) $(LDFLAGS)
 
 -include $(DEPENDFILE)
